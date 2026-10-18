@@ -1,4 +1,6 @@
 using GolBet.Repositories.Data;
+using GolBet.Repositories.Implementations;
+using GolBet.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +15,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 var app = builder.Build();
 
+// Seed the database on startup
+using (var scope = app.Services.CreateScope())
+
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    await DbSeeder.SeedAsync(context);
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -20,6 +31,14 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+// Open generic registration: one line, a repository for every entity
+
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+// Specific repositories
+
+builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
