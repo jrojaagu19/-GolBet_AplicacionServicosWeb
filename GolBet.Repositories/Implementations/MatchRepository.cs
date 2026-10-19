@@ -30,13 +30,13 @@ public class MatchRepository : GenericRepository<Match>, IMatchRepository
             .AsNoTracking()
             .AsQueryable();
 
-        // Filtro por estado del partido
+        // Filter by match status
         if (status.HasValue)
         {
             query = query.Where(m => m.Status == status.Value);
         }
 
-        // Filtro por nombre del equipo local o visitante
+        // Filter by local or visiting team name
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchText = search.Trim().ToLower();

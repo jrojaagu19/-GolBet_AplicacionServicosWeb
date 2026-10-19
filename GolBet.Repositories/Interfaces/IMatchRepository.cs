@@ -9,6 +9,7 @@ namespace GolBet.Repositories.Interfaces;
 public interface IMatchRepository : IGenericRepository<Match>
 
 {
+    //Adds the optional search parameter
     Task<IEnumerable<Match>> GetAllWithTeamsAsync(
      MatchStatus? status = null,
      string? search = null);
