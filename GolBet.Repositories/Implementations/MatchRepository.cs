@@ -19,26 +19,36 @@ public class MatchRepository : GenericRepository<Match>, IMatchRepository
     {
     }
 
-    public async Task<IEnumerable<Match>> GetAllWithTeamsAsync(MatchStatus? status = null)
-
+    public async Task<IEnumerable<Match>> GetAllWithTeamsAsync(
+        MatchStatus? status = null,
+        string? search = null)
     {
         var query = _dbSet
-
             .Include(m => m.HomeTeam)
-
             .Include(m => m.AwayTeam)
-
             .Where(m => m.IsActive)
-
             .AsNoTracking()
-
             .AsQueryable();
 
+        // Filtro por estado del partido
         if (status.HasValue)
-
+        {
             query = query.Where(m => m.Status == status.Value);
+        }
 
-        return await query.OrderBy(m => m.Date).ToListAsync();
+        // Filtro por nombre del equipo local o visitante
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchText = search.Trim().ToLower();
+
+            query = query.Where(m =>
+                m.HomeTeam.Name.ToLower().Contains(searchText) ||
+                m.AwayTeam.Name.ToLower().Contains(searchText));
+        }
+
+        return await query
+            .OrderBy(m => m.Date)
+            .ToListAsync();
     }
 
     public async Task<Match?> GetByIdWithDetailsAsync(int id)

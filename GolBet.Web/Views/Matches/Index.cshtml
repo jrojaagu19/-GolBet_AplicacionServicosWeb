@@ -7,17 +7,41 @@
 @model IEnumerable<GolBet.Services.DTOs.MatchDto>
 
 @{
-
     ViewData["Title"] = "Partidos";
-
-}
-
-@{
-
     var current = (MatchStatus?)ViewBag.CurrentStatus;
-
+    var currentSearch = ViewBag.CurrentSearch as string;
 }
 
+<form asp-action="Index" method="get" class="mb-3">
+    <div class="input-group">
+        <input type="text"
+               name="search"
+               value="@currentSearch"
+               class="form-control"
+               placeholder="Buscar por nombre de equipo..."
+               aria-label="Buscar partidos por equipo" />
+
+        @if (current.HasValue)
+        {
+            <input type="hidden"
+                   name="status"
+                   value="@current.Value" />
+        }
+
+        <button type="submit" class="btn btn-success">
+            Buscar
+        </button>
+
+        @if (!string.IsNullOrWhiteSpace(currentSearch))
+        {
+            <a asp-action="Index"
+               asp-route-status="@current"
+               class="btn btn-outline-secondary">
+                Limpiar búsqueda
+            </a>
+        }
+    </div>
+</form>
 <div class="d-flex gap-2 flex-wrap mb-4">
 
     <a asp-action="Index"
@@ -28,6 +52,7 @@
     </a>
 
     <a asp-action="Index" asp-route-status="@MatchStatus.Scheduled"
+       asp-route-search="@currentSearch"
        class="btn btn-sm @(current == MatchStatus.Scheduled ? "btn-success" : "btn-outline-success")">
 
         Programados
@@ -35,6 +60,7 @@
     </a>
 
     <a asp-action="Index" asp-route-status="@MatchStatus.InProgress"
+       asp-route-search="@currentSearch"
        class="btn btn-sm @(current == MatchStatus.InProgress ? "btn-success" : "btn-outline-success")">
 
         En juego
@@ -42,6 +68,7 @@
     </a>
 
     <a asp-action="Index" asp-route-status="@MatchStatus.Finished"
+       asp-route-search="@currentSearch"
        class="btn btn-sm @(current == MatchStatus.Finished ? "btn-success" : "btn-outline-success")">
 
         Finalizados
@@ -63,8 +90,9 @@
 
 
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-
+@if (Model.Any())
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
     @foreach (var match in Model)
 
     {
@@ -216,3 +244,20 @@
     }
 
 </div> 
+}
+else
+{
+<div class="text-center py-5">
+    <h4>No encontramos partidos</h4>
+
+    <p class="text-muted">
+        No hay partidos para el equipo
+        «@currentSearch».
+    </p>
+
+    <a asp-action="Index"
+       class="btn btn-success">
+        Volver a la cartelera de partidos
+    </a>
+</div>
+}
