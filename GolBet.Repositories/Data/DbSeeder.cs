@@ -4,6 +4,8 @@ using GolBet.Entities;
 
 using GolBet.Entities.Enums;
 
+using Microsoft.AspNetCore.Identity;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace GolBet.Repositories.Data;
@@ -11,12 +13,35 @@ namespace GolBet.Repositories.Data;
 public static class DbSeeder
 
 {
-    public static async Task SeedAsync(AppDbContext context)
+    // Role names as constants: a typo won't compile instead of failing silently
+
+    public const string AdminRole = "Admin";
+
+    public const string BettorRole = "Apostador";
+
+    public static async Task SeedAsync(
+
+        AppDbContext context,
+
+        RoleManager<IdentityRole> roleManager,
+
+        UserManager<AppUser> userManager)
+
     {
         // Applies any pending migration (creates the DB if it does not exist)
 
         await context.Database.MigrateAsync();
 
+        await SeedDomainAsync(context);
+
+        await SeedIdentityAsync(roleManager, userManager);
+    }
+
+    // ---- Domain data: teams and matches (Module 3) ----
+
+    private static async Task SeedDomainAsync(AppDbContext context)
+
+    {
         if (await context.Teams.AnyAsync()) return;   // idempotence guard
 
         // ---- Teams ----
@@ -24,21 +49,29 @@ public static class DbSeeder
         var teams = new List<Team>
 
         {
-            new() { Name = "Atlético Nacional",       City = "Medellín",     CrestUrl = "https://placehold.co/80x80/006633/ffffff?text=NAC" },
+            new() {
+                Name = "Atlético Nacional",
 
-            new() { Name = "Independiente Medellín",  City = "Medellín",     CrestUrl = "https://placehold.co/80x80/cc0000/ffffff?text=DIM" },
+                City = "Medellín",
 
-            new() { Name = "Millonarios",             City = "Bogotá",       CrestUrl = "https://placehold.co/80x80/003399/ffffff?text=MIL" },
+                CrestUrl = "https://placehold.co/80x80/006633/ffffff?text=NAC"
 
-            new() { Name = "Independiente Santa Fe",  City = "Bogotá",       CrestUrl = "https://placehold.co/80x80/cc0000/ffffff?text=SFE" },
+                //CrestUrl = "https://upload.wikimedia.org/wikipedia/commons/a/ae/Atletico_Nacional_Logo.svg?utm_source=es.wikipedia.org&utm_campaign=index&utm_content=original"
+            },
 
-            new() { Name = "América de Cali",         City = "Cali",         CrestUrl = "https://placehold.co/80x80/e60000/ffffff?text=AME" },
+            new() { Name = "Independiente Medellín",  City = "Medellín",     CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/dim.jpg" },
 
-            new() { Name = "Deportivo Cali",          City = "Cali",         CrestUrl = "https://placehold.co/80x80/00794d/ffffff?text=CAL" },
+            new() { Name = "Millonarios",             City = "Bogotá",       CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/millonarios.jpg" },
 
-            new() { Name = "Junior de Barranquilla",  City = "Barranquilla", CrestUrl = "https://placehold.co/80x80/d40026/ffffff?text=JUN" },
+            new() { Name = "Independiente Santa Fe",  City = "Bogotá",       CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/santafe.jpg" },
 
-            new() { Name = "Once Caldas",             City = "Manizales",    CrestUrl = "https://placehold.co/80x80/ffffff/000000?text=ONC" }
+            new() { Name = "América de Cali",         City = "Cali",         CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/america.jpg" },
+
+            new() { Name = "Deportivo Cali",          City = "Cali",         CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/depcali.jpg" },
+
+            new() { Name = "Junior de Barranquilla",  City = "Barranquilla", CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/junior.jpg" },
+
+            new() { Name = "Once Caldas",             City = "Manizales",    CrestUrl = "https://paladarnegro.net/escudoteca/colombia/primeraa/img/oncecaldas.jpg" }
         };
 
         context.Teams.AddRange(teams);
@@ -63,7 +96,11 @@ public static class DbSeeder
 
                 Status = MatchStatus.Scheduled,
 
-                HomeOdds = 2.10m, DrawOdds = 3.20m, AwayOdds = 3.60m
+                HomeOdds = 2.10m,
+
+                DrawOdds = 3.20m,
+
+                AwayOdds = 3.60m
             },
 
             new()
@@ -136,5 +173,55 @@ public static class DbSeeder
         context.Matches.AddRange(matches);
 
         await context.SaveChangesAsync();
+    }
+
+    // ---- Identity data: roles and admin user (Module 7) ----
+
+    private static async Task SeedIdentityAsync(
+
+        RoleManager<IdentityRole> roleManager,
+
+        UserManager<AppUser> userManager)
+
+    {
+        // Roles (idempotent)
+
+        foreach (var role in new[] { AdminRole, BettorRole })
+
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+
+                await roleManager.CreateAsync(new IdentityRole(role));
+        }
+
+        // Admin user (idempotent)
+        if (await userManager.FindByEmailAsync("admin@golbet.com") is null)
+        {
+            var admin = new AppUser
+            {
+                UserName = "admin@golbet.com",
+                Email = "admin@golbet.com",
+                FullName = "Administrador GolBet",
+                Balance = 0m,              // admins manage, they do not bet
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(admin, "Admin123*");
+            await userManager.AddToRoleAsync(admin, AdminRole);
+        }
+
+        // Bettor user (idempotent)
+        if (await userManager.FindByEmailAsync("bettor@golbet.com") is null)
+        {
+            var bettor = new AppUser
+            {
+                UserName = "bettor@golbet.com",
+                Email = "bettor@golbet.com",
+                FullName = "bettor GolBet",
+                Balance = 100000m,              // admins manage, they do not bet
+                EmailConfirmed = true
+            };
+            await userManager.CreateAsync(bettor, "Bettor123*");
+            await userManager.AddToRoleAsync(bettor, AdminRole);
+        }
     }
 }
